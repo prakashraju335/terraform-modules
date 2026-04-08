@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS region where resources will be created"
   type        = string
-  default     = "us-east-1"
+  default     = "ap-south-1"
 }
 
 variable "environment" {
@@ -61,3 +61,74 @@ variable "s3_acl" {
   type        = string
   default     = "private"
 }
+
+# ECR Variables
+variable "ecr_repository_name" {
+  description = "Name of the ECR repository"
+  type        = string
+}
+
+variable "ecr_image_tag_mutability" {
+  description = "The tag mutability setting for the ECR repository"
+  type        = string
+  default     = "MUTABLE"
+}
+
+variable "ecr_scan_on_push" {
+  description = "Indicates whether images are scanned after being pushed to the ECR repository"
+  type        = bool
+  default     = true
+}
+
+# # EKS Variables (requires VPC configuration)
+# variable "eks_cluster_name" {
+#   description = "Name of the EKS cluster"
+#   type        = string
+#   default     = "srpr-eks-cluster"
+# }
+
+# variable "eks_kubernetes_version" {
+#   description = "Kubernetes version for the EKS cluster"
+#   type        = string
+#   default     = "1.35"
+# }
+
+# variable "vpc_id" {
+#   description = "VPC ID where the EKS cluster will be created"
+#   type        = string
+# }
+
+# variable "subnet_ids" {
+#   description = "List of subnet IDs for the EKS cluster"
+#   type        = list(string)
+# }
+
+# variable "eks_node_group_name" {
+#   description = "Name of the EKS node group"
+#   type        = string
+#   default     = "srpr-node-group"
+# }
+
+# variable "eks_node_instance_type" {
+#   description = "Instance type for EKS nodes"
+#   type        = string
+#   default     = "t3.medium"
+# }
+
+# variable "eks_node_desired_capacity" {
+#   description = "Desired number of worker nodes"
+#   type        = number
+#   default     = 2
+# }
+
+# variable "eks_node_min_size" {
+#   description = "Minimum number of worker nodes"
+#   type        = number
+#   default     = 1
+# }
+
+# variable "eks_node_max_size" {
+#   description = "Maximum number of worker nodes"
+#   type        = number
+#   default     = 3
+# }
