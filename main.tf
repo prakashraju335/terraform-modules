@@ -30,19 +30,16 @@ module "ecr" {
   tags = var.common_tags
 }
 
-# # EKS module requires VPC configuration - uncomment when VPC is available
-# module "eks" {
-#   source = "./modules/eks"
+module "eks" {
+  source = "./modules/eks"
 
-#   cluster_name          = var.eks_cluster_name
-#   kubernetes_version    = var.eks_kubernetes_version
-#   vpc_id               = var.vpc_id
-#   subnet_ids           = var.subnet_ids
-#   node_group_name      = var.eks_node_group_name
-#   node_instance_type   = var.eks_node_instance_type
-#   node_desired_capacity = var.eks_node_desired_capacity
-#   node_min_size        = var.eks_node_min_size
-#   node_max_size        = var.eks_node_max_size
+  cluster_name          = var.eks_cluster_name
+  kubernetes_version    = var.eks_kubernetes_version
+  node_group_name      = var.eks_node_group_name
+  node_instance_type   = var.eks_node_instance_type
+  node_desired_capacity = var.eks_node_desired_capacity
+  node_min_size        = var.eks_node_min_size
+  node_max_size        = var.eks_node_max_size
 
-#   tags = var.common_tags
-# }
+  tags = var.common_tags
+}

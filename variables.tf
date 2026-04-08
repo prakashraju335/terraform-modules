@@ -80,55 +80,45 @@ variable "ecr_scan_on_push" {
   default     = true
 }
 
-# # EKS Variables (requires VPC configuration)
-# variable "eks_cluster_name" {
-#   description = "Name of the EKS cluster"
-#   type        = string
-#   default     = "srpr-eks-cluster"
-# }
+# EKS Variables (uses default VPC and subnets)
+variable "eks_cluster_name" {
+  description = "Name of the EKS cluster"
+  type        = string
+  default     = "srpr-eks-cluster"
+}
 
-# variable "eks_kubernetes_version" {
-#   description = "Kubernetes version for the EKS cluster"
-#   type        = string
-#   default     = "1.35"
-# }
+variable "eks_kubernetes_version" {
+  description = "Kubernetes version for the EKS cluster"
+  type        = string
+  default     = "1.28"
+}
 
-# variable "vpc_id" {
-#   description = "VPC ID where the EKS cluster will be created"
-#   type        = string
-# }
+variable "eks_node_group_name" {
+  description = "Name of the EKS node group"
+  type        = string
+  default     = "srpr-node-group"
+}
 
-# variable "subnet_ids" {
-#   description = "List of subnet IDs for the EKS cluster"
-#   type        = list(string)
-# }
+variable "eks_node_instance_type" {
+  description = "Instance type for EKS nodes"
+  type        = string
+  default     = "t3.medium"
+}
 
-# variable "eks_node_group_name" {
-#   description = "Name of the EKS node group"
-#   type        = string
-#   default     = "srpr-node-group"
-# }
+variable "eks_node_desired_capacity" {
+  description = "Desired number of worker nodes"
+  type        = number
+  default     = 2
+}
 
-# variable "eks_node_instance_type" {
-#   description = "Instance type for EKS nodes"
-#   type        = string
-#   default     = "t3.medium"
-# }
+variable "eks_node_min_size" {
+  description = "Minimum number of worker nodes"
+  type        = number
+  default     = 1
+}
 
-# variable "eks_node_desired_capacity" {
-#   description = "Desired number of worker nodes"
-#   type        = number
-#   default     = 2
-# }
-
-# variable "eks_node_min_size" {
-#   description = "Minimum number of worker nodes"
-#   type        = number
-#   default     = 1
-# }
-
-# variable "eks_node_max_size" {
-#   description = "Maximum number of worker nodes"
-#   type        = number
-#   default     = 3
-# }
+variable "eks_node_max_size" {
+  description = "Maximum number of worker nodes"
+  type        = number
+  default     = 3
+}

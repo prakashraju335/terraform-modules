@@ -1,0 +1,236 @@
+name: Terraform Operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Select Terraform command to execute'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - init
+          - plan
+          - apply
+          - destroy
+      environment:
+        description: 'Environment (dev, staging, prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      auto_approve:
+        description: 'Auto-approve apply (only for apply command)'
+        required: false
+        type: boolean
+        default: false
+      confirmation:
+        description: 'Type "YES" for apply or "DESTROY-YES" for destroy to confirm'
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: 1.5.0
+  AWS_REGION: ap-south-1
+  TF_VAR_FILE: terraform.tfvars
+
+jobs:
+  validate_input:
+    name: Validate Input
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - name: Validate Confirmation
+        id: check
+        run: |
+          COMMAND="${{ github.event.inputs.command }}"
+          CONFIRMATION="${{ github.event.inputs.confirmation }}"
+          
+          if [ "$COMMAND" = "apply" ]; then
+            if [ "$CONFIRMATION" != "YES" ]; then
+              echo "❌ Apply cancelled: Type 'YES' to confirm"
+              echo "proceed=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          elif [ "$COMMAND" = "destroy" ]; then
+            if [ "$CONFIRMATION" != "DESTROY-YES" ]; then
+              echo "❌ Destroy cancelled: Type 'DESTROY-YES' to confirm"
+              echo "proceed=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          
+          echo "proceed=true" >> $GITHUB_OUTPUT
+
+  terraform_operations:
+    name: Terraform ${{ github.event.inputs.command }} - ${{ github.event.inputs.environment }}
+    runs-on: ubuntu-latest
+    needs: validate_input
+    if: needs.validate_input.outputs.proceed == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/terraform-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        if: |
+          github.event.inputs.command == 'init' ||
+          github.event.inputs.command == 'plan' ||
+          github.event.inputs.command == 'apply' ||
+          github.event.inputs.command == 'destroy'
+        run: terraform init -upgrade
+        working-directory: ${{ github.workspace }}
+
+      # - name: Terraform Validate
+      #   if: |
+      #     github.event.inputs.command == 'plan' ||
+      #     github.event.inputs.command == 'apply'
+      #   run: terraform validate
+      #   working-directory: ${{ github.workspace }}
+
+      # - name: Terraform Format
+      #   if: github.event.inputs.command == 'format'
+      #   run: terraform fmt -recursive -check
+      #   working-directory: ${{ github.workspace }}
+      #   continue-on-error: true
+
+      - name: Terraform Plan
+        if: |
+          github.event.inputs.command == 'plan' ||
+          github.event.inputs.command == 'apply'
+        run: terraform plan -var-file="${{ env.TF_VAR_FILE }}" -out=tfplan
+        working-directory: ${{ github.workspace }}
+
+      - name: Terraform Apply (with approval)
+        if: |
+          github.event.inputs.command == 'apply' &&
+          github.event.inputs.auto_approve == false
+        run: terraform apply -var-file="${{ env.TF_VAR_FILE }}"
+        working-directory: ${{ github.workspace }}
+
+      - name: Terraform Apply (auto-approve)
+        if: |
+          github.event.inputs.command == 'apply' &&
+          github.event.inputs.auto_approve == true
+        run: terraform apply -auto-approve -var-file="${{ env.TF_VAR_FILE }}"
+        working-directory: ${{ github.workspace }}
+
+      - name: Terraform Destroy
+        if: github.event.inputs.command == 'destroy'
+        run: terraform destroy -var-file="${{ env.TF_VAR_FILE }}" -auto-approve
+        working-directory: ${{ github.workspace }}
+
+      - name: Capture Terraform Output
+        if: |
+          github.event.inputs.command == 'apply' ||
+          github.event.inputs.command == 'destroy'
+        run: terraform output > deployment-outputs.txt 2>&1
+        working-directory: ${{ github.workspace }}
+        continue-on-error: true
+
+      - name: Upload Artifacts
+        if: |
+          github.event.inputs.command == 'plan' ||
+          github.event.inputs.command == 'apply' ||
+          github.event.inputs.command == 'destroy'
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-${{ github.event.inputs.command }}-${{ github.run_id }}
+          path: |
+            tfplan
+            deployment-outputs.txt
+          retention-days: 5
+        continue-on-error: true
+
+      - name: Create Summary - Init
+        if: |
+          github.event.inputs.command == 'init' &&
+          success()
+        run: |
+          echo "## ✅ Terraform Initialized" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Ready for plan/apply" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Summary - Validate
+        if: |
+          github.event.inputs.command == 'validate' &&
+          success()
+        run: |
+          echo "## ✅ Terraform Configuration Valid" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Summary - Format
+        if: |
+          github.event.inputs.command == 'format' &&
+          success()
+        run: |
+          echo "## ✅ Terraform Formatting Checked" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Summary - Plan
+        if: |
+          github.event.inputs.command == 'plan' &&
+          success()
+        run: |
+          echo "## 📋 Terraform Plan Complete" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Plan File:** tfplan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the plan output above" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run 'Apply' workflow with auto-approve or manual approval" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Summary - Apply
+        if: |
+          github.event.inputs.command == 'apply' &&
+          success()
+        run: |
+          echo "## ✅ Terraform Apply Successful" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Auto-Approve:** ${{ github.event.inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Resources Created:" >> $GITHUB_STEP_SUMMARY
+          echo "- EC2 Instance (srpr_main)" >> $GITHUB_STEP_SUMMARY
+          echo "- S3 Bucket (srpr_main)" >> $GITHUB_STEP_SUMMARY
+          echo "- ECR Repository (srpr_main)" >> $GITHUB_STEP_SUMMARY
+          echo "- EKS Cluster with Node Group (srpr_main)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Summary - Destroy
+        if: |
+          github.event.inputs.command == 'destroy' &&
+          success()
+        run: |
+          echo "## ⚠️ Terraform Destroy Complete" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Destroyed Resources:" >> $GITHUB_STEP_SUMMARY
+          echo "- EC2 Instance" >> $GITHUB_STEP_SUMMARY
+          echo "- S3 Bucket" >> $GITHUB_STEP_SUMMARY
+          echo "- ECR Repository" >> $GITHUB_STEP_SUMMARY
+          echo "- EKS Cluster with Node Group" >> $GITHUB_STEP_SUMMARY
+
+      - name: Failure Summary
+        if: failure()
+        run: |
+          echo "## ❌ Terraform ${{ github.event.inputs.command }} Failed" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Command:** ${{ github.event.inputs.command }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow Run:** [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY

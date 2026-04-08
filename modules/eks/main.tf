@@ -1,3 +1,22 @@
+# Data source to get default VPC
+data "aws_vpc" "default" {
+  default = true
+}
+
+# Data source to get default VPC subnets
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
+# Get the correct VPC - use provided or default
+locals {
+  vpc_id    = var.vpc_id != "" ? var.vpc_id : data.aws_vpc.default.id
+  subnet_ids = length(var.subnet_ids) > 0 ? var.subnet_ids : data.aws_subnets.default.ids
+}
+
 # IAM Role for EKS Cluster
 resource "aws_iam_role" "srpr_cluster" {
   name = "${var.cluster_name}-cluster-role"
@@ -65,7 +84,7 @@ resource "aws_eks_cluster" "srpr_main" {
   version  = var.kubernetes_version
 
   vpc_config {
-    subnet_ids = var.subnet_ids
+    subnet_ids = local.subnet_ids
   }
 
   depends_on = [
@@ -80,7 +99,7 @@ resource "aws_eks_node_group" "srpr_main" {
   cluster_name    = aws_eks_cluster.srpr_main.name
   node_group_name = var.node_group_name
   node_role_arn   = aws_iam_role.srpr_node_group.arn
-  subnet_ids      = var.subnet_ids
+  subnet_ids      = local.subnet_ids
 
   scaling_config {
     desired_size = var.node_desired_capacity

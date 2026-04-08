@@ -6,17 +6,19 @@ variable "cluster_name" {
 variable "kubernetes_version" {
   description = "Kubernetes version for the EKS cluster"
   type        = string
-  default     = "1.28"
+  default     = "1.35"
 }
 
 variable "vpc_id" {
-  description = "VPC ID where the EKS cluster will be created"
+  description = "VPC ID where the EKS cluster will be created (defaults to default VPC)"
   type        = string
+  default     = ""
 }
 
 variable "subnet_ids" {
-  description = "List of subnet IDs for the EKS cluster"
+  description = "List of subnet IDs for the EKS cluster (defaults to default VPC subnets)"
   type        = list(string)
+  default     = []
 }
 
 variable "node_group_name" {

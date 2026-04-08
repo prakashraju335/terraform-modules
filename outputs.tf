@@ -43,18 +43,17 @@ output "ecr_repository_name" {
   value       = module.ecr.repository_name
 }
 
-# EKS outputs - uncomment when EKS module is enabled
-# output "eks_cluster_id" {
-#   description = "EKS cluster ID"
-#   value       = module.eks.cluster_id
-# }
+output "eks_cluster_id" {
+  description = "EKS cluster ID"
+  value       = module.eks.cluster_id
+}
 
-# output "eks_cluster_endpoint" {
-#   description = "EKS cluster endpoint"
-#   value       = module.eks.cluster_endpoint
-# }
+output "eks_cluster_endpoint" {
+  description = "EKS cluster endpoint"
+  value       = module.eks.cluster_endpoint
+}
 
-# output "eks_cluster_name" {
-#   description = "EKS cluster name"
-#   value       = module.eks.cluster_name
-# }
+output "eks_cluster_name" {
+  description = "EKS cluster name"
+  value       = module.eks.cluster_name
+}
